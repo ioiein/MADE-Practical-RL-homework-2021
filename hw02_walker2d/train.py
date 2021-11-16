@@ -46,21 +46,36 @@ def compute_lambda_returns_and_gae(trajectory):
 
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim, action_dim, hidden_dim=512):
         super().__init__()
         # Advice: use same log_sigma for all states to improve stability
         # You can do this by defining log_sigma as nn.Parameter(torch.zeros(...))
-        self.model = None
-        self.sigma = None
+        self.model = nn.Sequential(
+            nn.Linear(state_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, action_dim)
+        )
+        self.sigma = nn.Parameter(torch.zeros(action_dim))
         
     def compute_proba(self, state, action):
         # Returns probability of action according to current policy and distribution of actions
-        return None
+        mu = self.model(state)
+        sigma = torch.exp(self.sigma)
+        distribution = Normal(mu, sigma)
+        probability = torch.exp(distribution.log_prob(action).sum(-1))
+        return probability, distribution
         
     def act(self, state):
         # Returns an action (with tanh), not-transformed action (without tanh) and distribution of non-transformed actions
         # Remember: agent is not deterministic, sample actions from distribution (e.g. Gaussian)
-        return None
+        mu = self.model(state)
+        sigma = torch.exp(self.sigma)
+        distribution = Normal(mu, sigma)
+        action = distribution.sample()
+        action_tahn = torch.tanh(action)
+        return action_tahn, action, distribution
         
         
 class Critic(nn.Module):
@@ -104,10 +119,20 @@ class PPO:
             v = torch.tensor(target_value[idx]).float() # Estimated by lambda-returns 
             adv = torch.tensor(advantage[idx]).float() # Estimated by generalized advantage estimation 
             
-            # TODO: Update actor here            
-            # TODO: Update critic here
-            
-            
+            new_probability, distribution = self.actor.compute_proba(s, a)
+            ratio = torch.exp(torch.log(new_probability + 1e-10) - torch.log(op + 1e-10))
+            surr1 = ratio * adv
+            surr2 = torch.clamp(ratio, 1 - CLIP, 1 + CLIP) * adv
+            actor_loss = (-torch.min(surr1, surr2)).mean()
+            actor_loss -= ENTROPY_COEF * distribution.entropy().mean()
+            self.actor_optim.zero_grad()
+            actor_loss.backward()
+            self.actor_optim.step()
+            critic_loss = F.smooth_l1_loss(self.critic.get_value(s).flatten(), v)
+            self.critic_optim.zero_grad()
+            critic_loss.backward()
+            self.critic_optim.step()
+
     def get_value(self, state):
         with torch.no_grad():
             state = torch.tensor(np.array([state])).float()
