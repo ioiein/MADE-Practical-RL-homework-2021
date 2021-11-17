@@ -146,8 +146,8 @@ class PPO:
             prob = torch.exp(distr.log_prob(pure_action).sum(-1))
         return action.cpu().numpy()[0], pure_action.cpu().numpy()[0], prob.cpu().item()
 
-    def save(self):
-        torch.save(self.actor, "agent.pkl")
+    def save(self,name="agent.pkl"):
+        torch.save(self.actor, name)
 
 
 def evaluate_policy(env, agent, episodes=5):
@@ -195,8 +195,11 @@ if __name__ == "__main__":
         steps_sampled += steps_ctn
 
         ppo.update(trajectories)        
-        
+        best = 0
         if (i + 1) % (ITERATIONS//100) == 0:
             rewards = evaluate_policy(env, ppo, 5)
             print(f"Step: {i+1}, Reward mean: {np.mean(rewards)}, Reward std: {np.std(rewards)}, Episodes: {episodes_sampled}, Steps: {steps_sampled}")
+            if np.mean(rewards) > best:
+                ppo.save("best.pkl")
+                best = np.mean(rewards)
             ppo.save()
