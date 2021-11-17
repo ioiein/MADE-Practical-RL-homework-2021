@@ -3,6 +3,10 @@ import numpy as np
 import os
 import torch
 
+random.seed(25)
+np.random.seed(25)
+torch.manual_seed(25)
+
 
 class Agent:
     def __init__(self):
@@ -11,7 +15,8 @@ class Agent:
     def act(self, state):
         with torch.no_grad():
             state = torch.tensor(np.array(state)).float()
-            return None # TODO
+            action, _, _ = self.model.act(state)
+            return action.cpu().numpy()
 
     def reset(self):
         pass
