@@ -182,7 +182,7 @@ if __name__ == "__main__":
     state = env.reset()
     episodes_sampled = 0
     steps_sampled = 0
-    
+    best = 0
     for i in range(ITERATIONS):
         trajectories = []
         steps_ctn = 0
@@ -194,8 +194,7 @@ if __name__ == "__main__":
         episodes_sampled += len(trajectories)
         steps_sampled += steps_ctn
 
-        ppo.update(trajectories)        
-        best = 0
+        ppo.update(trajectories)
         if (i + 1) % (ITERATIONS//100) == 0:
             rewards = evaluate_policy(env, ppo, 5)
             print(f"Step: {i+1}, Reward mean: {np.mean(rewards)}, Reward std: {np.std(rewards)}, Episodes: {episodes_sampled}, Steps: {steps_sampled}")
