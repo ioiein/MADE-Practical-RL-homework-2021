@@ -9,8 +9,8 @@ class Agent:
         self.model = torch.load(__file__[:-8] + "/agent.pkl")
         
     def act(self, state):
-        state = torch.tensor(np.array(state))
-        return 0 # TODO
+        state = torch.tensor(np.array([state])).float()
+        return self.model(state).cpu().numpy()[0]
 
     def reset(self):
         pass
