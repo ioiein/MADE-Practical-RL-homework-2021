@@ -35,12 +35,25 @@ class BehavioralCloning(nn.Module):
     def get_action(self, state):
         return self.model(state)
 
+    def save(self, name='agent.pkl'):
+        torch.save(self, name)
+
 
 def train():
     model = BehavioralCloning(256)
     optim = torch.optim.Adam(model.parameters(), lr=1e-4)
+    dataset = TransitionDataset("suboptimal.npz")
+    for _ in tqdm.tqdm(range(500)):
+        dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+        for batch in dataloader:
+            state, action, _, _, _ = batch
+            action_pred = model.get_action(state)
+            loss = F.mse_loss(action_pred, action)
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
     dataset = TransitionDataset("optimal.npz")
-    for _ in tqdm.tqdm(range(200)):
+    for _ in tqdm.tqdm(range(400)):
         dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
         for batch in dataloader:
             state, action, _, _, _ = batch
@@ -52,5 +65,6 @@ def train():
     return model
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     model = train()
+    model.save()
